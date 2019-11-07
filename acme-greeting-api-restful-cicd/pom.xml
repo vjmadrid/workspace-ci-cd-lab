@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>com.acme.greeting.api.restful.cicd</groupId>
+	<artifactId>acme-greeting-api-restful-cicd</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>jar</packaging>
+
+	<name>acme-greeting-api-restful-cicd</name>
+	<description></description>
+
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.2.0.RELEASE</version>
+	</parent>
+
+	<properties>
+		<java.version>1.8</java.version>
+		<start-class>com.acme.greeting.api.restful.cicd.Application</start-class>
+		
+		<dockerfile-maven-plugin.version>1.4.9</dockerfile-maven-plugin.version>
+		
+		<docker.image.prefix>acme</docker.image.prefix>
+		
+		<maven.deploy.skip>true</maven.deploy.skip>
+		
+		<!-- Github : OAuth token & server -->
+		<github.global.server>github</github.global.server>
+        <github.global.oauth2Token>${env.GITHUB_OAUTH_TOKEN}</github.global.oauth2Token>
+        
+        <!-- Heroku : Useful for Heroku Deployment -->
+        <full-artifact-name>target/${project.artifactId}-${project.version}.jar</full-artifact-name>
+		
+	</properties>
+
+	<profiles>
+		<profile>
+			<id>dev</id>
+			<properties>
+				<spring.profiles.active>dev</spring.profiles.active>
+			</properties>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+		</profile>
+		<profile>
+			<id>uat</id>
+			<properties>
+				<spring.profiles.active>uat</spring.profiles.active>
+			</properties>
+		</profile>
+		<profile>
+			<id>prod</id>
+			<properties>
+				<spring.profiles.active>prod</spring.profiles.active>
+			</properties>
+		</profile>
+	</profiles>
+
+	<dependencies>
+
+		<!-- *** Architecture Libraries *** -->
+
+		<!-- Modules -->
+
+
+		<!-- *** Third Party Libraries *** -->
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+		<!-- To reload the code when changes made -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<optional>true</optional>
+		</dependency>
+		
+	</dependencies>
+
+	<build>
+
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+
+		<plugins>
+
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+
+			<plugin>
+		        <artifactId>maven-failsafe-plugin</artifactId>
+		        <executions>
+		            <execution>
+		                <goals>
+		                    <goal>integration-test</goal>
+		                    <goal>verify</goal>
+		                </goals>
+		            </execution>
+		        </executions>
+			</plugin>
+			
+			<plugin>
+			    <groupId>org.apache.maven.plugins</groupId>
+			    <artifactId>maven-dependency-plugin</artifactId>
+			    <executions>
+			        <execution>
+			            <id>unpack</id>
+			            <phase>package</phase>
+			            <goals>
+			                <goal>unpack</goal>
+			            </goals>
+			            <configuration>
+			                <artifactItems>
+			                    <artifactItem>
+			                        <groupId>${project.groupId}</groupId>
+			                        <artifactId>${project.artifactId}</artifactId>
+			                        <version>${project.version}</version>
+			                    </artifactItem>
+			                </artifactItems>
+			            </configuration>
+			        </execution>
+			    </executions>
+			</plugin>
+			
+			<plugin>
+	            <groupId>com.spotify</groupId>
+	            <artifactId>dockerfile-maven-plugin</artifactId>
+	            <version>${dockerfile-maven-plugin.version}</version>
+	            <executions>
+					<execution>
+						<id>default</id>
+						<phase>install</phase>
+						<goals>
+							<goal>build</goal>
+							<goal>push</goal>
+						</goals>
+					</execution>
+				</executions>
+	            <configuration>
+	                <repository>${docker.image.prefix}/${project.artifactId}</repository>
+			
+	                <serverId>index.docker.io</serverId>
+	      		<registryUrl>https://index.docker.io:443/v1/</registryUrl>
+	            </configuration>
+        	</plugin>
+        	
+        	<plugin>
+            	<groupId>org.apache.maven.plugins</groupId>
+            	<artifactId>maven-site-plugin</artifactId>
+            </plugin>
+            
+            <plugin>
+				<groupId>com.github.github</groupId>
+				<artifactId>site-maven-plugin</artifactId>
+				<version>0.12</version>
+				<configuration>
+					<message>Building site for ${project.name} ${project.version}</message>
+					<server>github</server>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>site</goal>
+						</goals>
+						<phase>site</phase>
+					</execution>
+				</executions>
+			</plugin>
+			
+			<plugin>
+				<groupId>com.heroku.sdk</groupId>
+				<artifactId>heroku-maven-plugin</artifactId>
+				<version>2.0.11</version>
+				<configuration>
+					<appName>cicd-spring-boot-java-app</appName>
+					<processTypes>
+						<web>java $JAVA_OPTS -jar -Dserver.port=$PORT ${full-artifact-name}</web>
+					</processTypes>
+				</configuration>
+      		</plugin> 
+			
+		</plugins>
+	</build>
+	
+	<licenses>
+		<license>
+			<name>MIT License</name>
+			<url>http://www.opensource.org/licenses/mit-license.php</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+  
+	<developers>
+		<developer>
+			<name>Victor Madrid</name>
+			<url>https://github.com/vjmadrid</url>
+			<id>Acme</id>
+		</developer>
+  	 </developers>
+  
+	 <organization>
+		<name>Victor Madrid</name>
+		<url>https://github.com/vjmadrid/</url>
+	</organization>
+  
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/FanJups/cicd-applied-to-spring-boot-java-app/issues</url>
+	</issueManagement>
+  
+	<scm>
+		<url>https://github.com/FanJups/cicd-applied-to-spring-boot-java-app</url>
+		<connection>scm:git:git://github.com/FanJups/cicd-applied-to-spring-boot-java-app.git</connection>
+		<developerConnection>scm:git:git://github.com/FanJups/cicd-applied-to-spring-boot-java-app.git</developerConnection>
+	</scm>
+
+</project>
